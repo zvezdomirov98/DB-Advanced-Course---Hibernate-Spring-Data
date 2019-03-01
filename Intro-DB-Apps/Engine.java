@@ -11,7 +11,7 @@ public class Engine implements Runnable {
     @Override
     public void run() {
         try {
-            addMinion("Mars", 23, "Sofia", "Poppy");
+            System.out.println(upCaseTownNames("USA"));
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -21,15 +21,15 @@ public class Engine implements Runnable {
     private void getVillainsNames() throws SQLException {
         String query =
                 "SELECT\n" +
-                "       v.name,\n" +
-                "       COUNT(m.id) AS number_of_minions\n" +
-                "FROM villains v\n" +
-                "LEFT JOIN minions_villains mv\n" +
-                "ON v.id = mv.villain_id\n" +
-                "LEFT JOIN minions m\n" +
-                "ON m.id = mv.minion_id\n" +
-                "GROUP BY v.name\n" +
-                "ORDER BY number_of_minions DESC;";
+                        "       v.name,\n" +
+                        "       COUNT(m.id) AS number_of_minions\n" +
+                        "FROM villains v\n" +
+                        "LEFT JOIN minions_villains mv\n" +
+                        "ON v.id = mv.villain_id\n" +
+                        "LEFT JOIN minions m\n" +
+                        "ON m.id = mv.minion_id\n" +
+                        "GROUP BY v.name\n" +
+                        "ORDER BY number_of_minions DESC;";
         PreparedStatement preparedStatement = connection.prepareStatement(query);
         ResultSet resultSet = preparedStatement.executeQuery();
 
@@ -95,7 +95,7 @@ public class Engine implements Runnable {
                            String villainName) throws SQLException {
         final String DEFAULT_EVIL_FACTOR = "evil";
 
-        if(!isTownInDb(townName)) {
+        if (!isTownInDb(townName)) {
             System.out.println(addTown(townName));
         }
         if (!isVillainInDb(villainName)) {
@@ -104,7 +104,7 @@ public class Engine implements Runnable {
 
         String addMinionQuery =
                 "INSERT INTO minions (name, age)\n" +
-                "VALUES (?, ?);";
+                        "VALUES (?, ?);";
         PreparedStatement preparedStatement = connection.prepareStatement(addMinionQuery);
         preparedStatement.setString(1, minionName);
         preparedStatement.setLong(2, minionAge);
@@ -116,18 +116,18 @@ public class Engine implements Runnable {
         String response = null;
         String getMinionIdQuery =
                 "SELECT id\n" +
-                "FROM minions\n" +
-                "WHERE name = ?;";
+                        "FROM minions\n" +
+                        "WHERE name = ?;";
         PreparedStatement preparedStatement = connection.prepareStatement(getMinionIdQuery);
         preparedStatement.setString(1, minionName);
         ResultSet resultSet = preparedStatement.executeQuery();
-        if(resultSet.next()) {
+        if (resultSet.next()) {
             long minionId = resultSet.getInt("id");
 
             String getVillainIdQuery =
                     "SELECT id\n" +
-                    "FROM villains\n" +
-                    "WHERE name = ?;";
+                            "FROM villains\n" +
+                            "WHERE name = ?;";
             preparedStatement = connection.prepareStatement(getVillainIdQuery);
             preparedStatement.setString(1, villainName);
             resultSet = preparedStatement.executeQuery();
@@ -137,7 +137,7 @@ public class Engine implements Runnable {
 
                 String setServantQuery =
                         "INSERT IGNORE INTO minions_villains (minion_id, villain_id)\n" +
-                        "VALUES (?, ?);";
+                                "VALUES (?, ?);";
                 preparedStatement = connection.prepareStatement(setServantQuery);
                 preparedStatement.setLong(1, minionId);
                 preparedStatement.setLong(2, villainId);
@@ -156,7 +156,7 @@ public class Engine implements Runnable {
     private String addVillain(String villainName, String evilFactor) throws SQLException {
         String query =
                 "INSERT INTO villains (name, evil_factor)\n" +
-                "VALUES (?, ?);";
+                        "VALUES (?, ?);";
         PreparedStatement preparedStatement = connection.prepareStatement(query);
         preparedStatement.setString(1, villainName);
         preparedStatement.setString(2, evilFactor);
@@ -168,8 +168,8 @@ public class Engine implements Runnable {
     private boolean isVillainInDb(String villainName) throws SQLException {
         String query =
                 "SELECT id\n" +
-                "FROM villains\n" +
-                "WHERE name = ?;";
+                        "FROM villains\n" +
+                        "WHERE name = ?;";
         PreparedStatement preparedStatement = connection.prepareStatement(query);
         preparedStatement.setString(1, villainName);
         ResultSet resultSet = preparedStatement.executeQuery();
@@ -179,7 +179,7 @@ public class Engine implements Runnable {
     private String addTown(String townName) throws SQLException {
         String query =
                 "INSERT INTO towns(name)\n" +
-                "VALUES (?);";
+                        "VALUES (?);";
         PreparedStatement preparedStatement = connection.prepareStatement(query);
         preparedStatement.setString(1, townName);
         preparedStatement.execute();
@@ -189,8 +189,8 @@ public class Engine implements Runnable {
     private boolean isTownInDb(String townName) throws SQLException {
         String query =
                 "SELECT id\n" +
-                "FROM towns\n" +
-                "WHERE name = ?;";
+                        "FROM towns\n" +
+                        "WHERE name = ?;";
         PreparedStatement preparedStatement = connection.prepareStatement(query);
         preparedStatement.setString(1, townName);
         ResultSet resultSet = preparedStatement.executeQuery();
@@ -199,4 +199,65 @@ public class Engine implements Runnable {
 
     /*Problem 4: Change town names casing*/
 
+    private String upCaseTownNames(String countryName) throws SQLException {
+        if (!isCountryInDb(countryName)) {
+            return "No such country is present in the database.";
+        }
+
+        String townsToUpdateQuery =
+                "SELECT UPPER(t.name) AS town_name\n" +
+                "FROM towns t\n" +
+                "       JOIN countries c\n" +
+                "            ON t.country_id = c.id\n" +
+                "WHERE c.name = ? AND\n" +
+                "      BINARY(t.name) NOT LIKE BINARY(UPPER(t.name));";
+        PreparedStatement preparedStatement = connection.prepareStatement(townsToUpdateQuery);
+        preparedStatement.setString(1, countryName);
+
+        ResultSet resultSet = preparedStatement.executeQuery();
+        StringBuilder affectedTownsReport = new StringBuilder();
+        if (!resultSet.next()) {
+            affectedTownsReport.append("No town names were affected.");
+            return affectedTownsReport.toString();
+        } else {
+            int townCount = 1;
+            affectedTownsReport
+                    .append("[")
+                    .append(resultSet.getString("town_name"));
+            while (resultSet.next()) {
+                affectedTownsReport
+                        .append(", ")
+                        .append(resultSet.getString("town_name"));
+                townCount++;
+            }
+            affectedTownsReport.append("]");
+            affectedTownsReport.insert(
+                    0,
+                    townCount + " town names were affected.\n");
+
+            String updateTownNamesQuery =
+                    "UPDATE towns t\n" +
+                    "JOIN countries c\n" +
+                    "ON t.country_id = c.id\n" +
+                    "SET t.name = UPPER(t.name)\n" +
+                    "WHERE c.name = ? AND\n" +
+                    "      BINARY(t.name) NOT LIKE BINARY(UPPER(t.name));";
+            preparedStatement = connection.prepareStatement(updateTownNamesQuery);
+            preparedStatement.setString(1, countryName);
+            preparedStatement.execute();
+
+            return affectedTownsReport.toString();
+        }
+    }
+
+    private boolean isCountryInDb(String countryName) throws SQLException {
+        String query =
+                "SELECT id\n" +
+                "FROM countries\n" +
+                "WHERE name = ?;";
+        PreparedStatement preparedStatement = connection.prepareStatement(query);
+        preparedStatement.setString(1, countryName);
+        ResultSet resultSet = preparedStatement.executeQuery();
+        return resultSet.next();
+    }
 }
