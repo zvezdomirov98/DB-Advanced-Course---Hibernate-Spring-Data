@@ -1,6 +1,9 @@
 import java.sql.Connection;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
+//TODO: REFACTOR INTO SEPARATE CLASSES
 public class Engine implements Runnable {
     private Connection connection;
 
@@ -11,7 +14,7 @@ public class Engine implements Runnable {
     @Override
     public void run() {
         try {
-            System.out.println(upCaseTownNames("USA"));
+            printAllMinionNames();
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -21,15 +24,15 @@ public class Engine implements Runnable {
     private void getVillainsNames() throws SQLException {
         String query =
                 "SELECT\n" +
-                        "       v.name,\n" +
-                        "       COUNT(m.id) AS number_of_minions\n" +
-                        "FROM villains v\n" +
-                        "LEFT JOIN minions_villains mv\n" +
-                        "ON v.id = mv.villain_id\n" +
-                        "LEFT JOIN minions m\n" +
-                        "ON m.id = mv.minion_id\n" +
-                        "GROUP BY v.name\n" +
-                        "ORDER BY number_of_minions DESC;";
+                "       v.name,\n" +
+                "       COUNT(m.id) AS number_of_minions\n" +
+                "FROM villains v\n" +
+                "LEFT JOIN minions_villains mv\n" +
+                "ON v.id = mv.villain_id\n" +
+                "LEFT JOIN minions m\n" +
+                "ON m.id = mv.minion_id\n" +
+                "GROUP BY v.name\n" +
+                "ORDER BY number_of_minions DESC;";
         PreparedStatement preparedStatement = connection.prepareStatement(query);
         ResultSet resultSet = preparedStatement.executeQuery();
 
@@ -45,15 +48,15 @@ public class Engine implements Runnable {
     private void getMinionNames(int villainId) throws SQLException {
         String query =
                 "SELECT\n" +
-                        "       v.name AS villain_name,\n" +
-                        "       m.name AS minion_name,\n" +
-                        "       m.age AS minion_age\n" +
-                        "FROM minions m\n" +
-                        "JOIN minions_villains mv\n" +
-                        "ON m.id = mv.minion_id\n" +
-                        "RIGHT JOIN villains v\n" +
-                        "ON v.id = mv.villain_id\n" +
-                        "WHERE v.id = ?;";
+                "       v.name AS villain_name,\n" +
+                "       m.name AS minion_name,\n" +
+                "       m.age AS minion_age\n" +
+                "FROM minions m\n" +
+                "JOIN minions_villains mv\n" +
+                "ON m.id = mv.minion_id\n" +
+                "RIGHT JOIN villains v\n" +
+                "ON v.id = mv.villain_id\n" +
+                "WHERE v.id = ?;";
         PreparedStatement preparedStatement = connection.prepareStatement(query);
         preparedStatement.setInt(1, villainId);
 
@@ -259,5 +262,30 @@ public class Engine implements Runnable {
         preparedStatement.setString(1, countryName);
         ResultSet resultSet = preparedStatement.executeQuery();
         return resultSet.next();
+    }
+
+    /*Problem 7: Print all minion names*/
+    private void printAllMinionNames() throws SQLException {
+        String queryString =
+                "SELECT name\n" +
+                "FROM minions;";
+        List<String> minionNames = new ArrayList<>();
+
+        ResultSet resultSet = connection
+                .prepareStatement(queryString)
+                .executeQuery();
+        while(resultSet.next()) {
+            minionNames.add(resultSet.getString("name"));
+        }
+
+        int left = 0, right = minionNames.size() - 1;
+        for (int i = 1; i < minionNames.size() + 1; i++) {
+            if (i % 2 == 0) {
+                System.out.println(minionNames.get(right--));
+            } else {
+                System.out.println(minionNames.get(left++));
+            }
+        }
+
     }
 }
