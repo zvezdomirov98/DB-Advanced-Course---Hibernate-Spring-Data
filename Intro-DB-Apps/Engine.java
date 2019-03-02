@@ -14,7 +14,8 @@ public class Engine implements Runnable {
     @Override
     public void run() {
         try {
-            printAllMinionNames();
+            increaseMinionsAge(1);
+            titleCaseMinionNames(1);
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -287,5 +288,30 @@ public class Engine implements Runnable {
             }
         }
 
+    }
+
+    /*Problem 8: Increase minions' age*/
+    private void increaseMinionsAge(long id) throws SQLException {
+        String queryString =
+                "UPDATE minions\n" +
+                "SET age = age + 1\n" +
+                "WHERE id = ?;";
+        PreparedStatement preparedStatement =
+                connection.prepareStatement(queryString);
+        preparedStatement.setLong(1, id);
+        preparedStatement.execute();
+    }
+
+    private void titleCaseMinionNames(long id) throws SQLException {
+        String queryString =
+                "UPDATE minions\n" +
+                "SET name = concat(\n" +
+                "  UCASE(LEFT(name, 1)),\n" +
+                "  LCASE(SUBSTRING(name, 2)))\n" +
+                "WHERE id = ?;";
+        PreparedStatement preparedStatement =
+                connection.prepareStatement(queryString);
+        preparedStatement.setLong(1, id);
+        preparedStatement.execute();
     }
 }
