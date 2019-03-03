@@ -3,6 +3,7 @@ package orm;
 import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
@@ -32,6 +33,7 @@ public class EntityManager<E> implements DbContext<E> {
     }
 
     public E findFirst(Class<E> table) {
+
         return null;
     }
 
@@ -81,7 +83,7 @@ public class EntityManager<E> implements DbContext<E> {
                 .append(tableName)
                 .append(" (");
 
-        List<Field> columnFields= Arrays.stream(entity.getClass().getDeclaredFields())
+        List<Field> columnFields = Arrays.stream(entity.getClass().getDeclaredFields())
                 .filter(field -> field.getAnnotation(Column.class) != null)
                 .collect(Collectors.toList());
 
@@ -103,11 +105,26 @@ public class EntityManager<E> implements DbContext<E> {
                     .append(field.get(entity))
                     .append("', ");
         }
-        query.replace(query.length() - 2, query.length() - 1, ")");
-        PreparedStatement preparedStatement =
-                connection.prepareStatement(query.toString());
+        query.replace(query.length() - 2, query.length() - 1, "); ")
+        .append("SELECT LAST_INSERT_ID();");
 
-        return preparedStatement.execute();
+        PreparedStatement preparedStatement = connection.prepareStatement(
+                "SELECT LAST_INSERT_ID();"
+        );
+        ResultSet rs = preparedStatement.executeQuery();
+        Object oldPrimaryValue = rs.getInt(0);
+
+        preparedStatement = connection.prepareStatement(query.toString());
+
+        preparedStatement.execute();
+        rs = connection.prepareStatement("SELECT LAST_INSERT_ID();").executeQuery();
+        Object newPrimaryValue = rs.getInt(1);
+
+        if (oldPrimaryValue != newPrimaryValue) {
+            primary.set(entity, oldPrimaryValue);
+            return true;
+        }
+        return false;
     }
 
 
