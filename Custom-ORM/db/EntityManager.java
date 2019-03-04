@@ -27,6 +27,12 @@ public class EntityManager<T> implements DbContext<T> {
             "SELECT * FROM {0} LIMIT 1";
     private static final String SELECT_SINGLE_WHERE_QUERY_TEMPLATE =
             "SELECT * FROM {0} WHERE {1} LIMIT 1";
+    private static final String INSERT_QUERY_TEMPLATE =
+            "INSERT INTO {0}({1}) VALUES({2});";
+    private static final String UPDATE_QUERY_TEMPLATE =
+            "UPDATE {0} {1} WHERE {2}";
+    private static final String SET_TEMPLATE =
+            "SET {0} = {1}";
     private Connection dbConnection;
     private Class<T> klass;
 
@@ -47,8 +53,50 @@ public class EntityManager<T> implements DbContext<T> {
     }
 
     @Override
-    public boolean persist(T entity) {
+    public boolean persist(T entity) throws IllegalAccessException, SQLException {
+        Field primaryKeyField = getPrimaryKeyField();
+        primaryKeyField.setAccessible(true);
+        Object currentValue = primaryKeyField.get(entity);
+        if (currentValue == null || (long) currentValue <= 0) {
+            return this.doInsert(entity);
+        } else {
+            return this.doUpdate(entity);
+        }
+    }
+
+    private boolean doUpdate(T entity) {
+
         return false;
+    }
+
+    private boolean doInsert(T entity) throws SQLException {
+        List<Field> columnFields = Arrays.stream(klass.getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Column.class))
+                .collect(Collectors.toList());
+        String columnNames = columnFields.stream()
+                .map(field -> field.getAnnotation(Column.class).name())
+                .collect(Collectors.joining(", "));
+
+        String columnValues = columnFields.stream()
+                .map(field -> {
+                    field.setAccessible(true);
+                    try {
+                        Object value = field.get(entity);
+                            return String.format("\'%s\'", value.toString());
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                    }
+                    return null;
+                })
+                .collect(Collectors.joining(", "));
+
+        String query = MessageFormat.format(
+                INSERT_QUERY_TEMPLATE,
+                getTableName(),
+                columnNames,
+                columnValues
+        );
+        return dbConnection.prepareStatement(query).execute();
     }
 
     @Override
@@ -67,15 +115,10 @@ public class EntityManager<T> implements DbContext<T> {
     @Override
     public T findFirst(String where) throws NoSuchMethodException, IllegalAccessException, InstantiationException, SQLException, InvocationTargetException {
 
-        String template = where == null ?
-                MessageFormat.format(
-                        SELECT_SINGLE_QUERY_TEMPLATE,
-                        getTableName()) :
-                MessageFormat.format(
-                        SELECT_SINGLE_WHERE_QUERY_TEMPLATE,
-                        getTableName(),
-                        where
-                );
+        String template =
+                where == null ?
+                        SELECT_SINGLE_QUERY_TEMPLATE :
+                        SELECT_SINGLE_WHERE_QUERY_TEMPLATE;
         return find(where, template).get(0);
     }
 
@@ -84,15 +127,10 @@ public class EntityManager<T> implements DbContext<T> {
             SQLException, InvocationTargetException,
             NoSuchMethodException, InstantiationException,
             IllegalAccessException {
-        String template = where == null ?
-                MessageFormat.format(
-                        SELECT_QUERY_TEMPLATE,
-                        getTableName()) :
-                MessageFormat.format(
-                        SELECT_WHERE_QUERY_TEMPLATE,
-                        getTableName(),
-                        where
-                );
+        String template =
+                where == null ?
+                        SELECT_QUERY_TEMPLATE :
+                        SELECT_WHERE_QUERY_TEMPLATE;
         return find(where, template);
     }
 
@@ -109,7 +147,12 @@ public class EntityManager<T> implements DbContext<T> {
             InstantiationException, SQLException,
             IllegalAccessException {
 
-        PreparedStatement preparedStatement = dbConnection.prepareStatement(template);
+        String query =
+                MessageFormat.format(
+                        template,
+                        getTableName(),
+                        where);
+        PreparedStatement preparedStatement = dbConnection.prepareStatement(query);
         ResultSet resultSet = preparedStatement.executeQuery();
         return toList(resultSet);
     }
@@ -131,7 +174,7 @@ public class EntityManager<T> implements DbContext<T> {
             NoSuchMethodException, IllegalAccessException,
             InvocationTargetException, InstantiationException, SQLException {
 
-        T entity = klass.getConstructor().newInstance();
+        T entity = klass.newInstance();
 
         this.setEntityPrimaryKey(resultSet, entity);
         this.setEntityColumns(resultSet, entity);

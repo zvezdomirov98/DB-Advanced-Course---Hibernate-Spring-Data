@@ -4,6 +4,7 @@ import entities.User;
 
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
+import java.util.Date;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.List;
@@ -21,13 +22,11 @@ public class App {
         props.setProperty("password", DB_PASSWORD);
         Connection connection = DriverManager
                 .getConnection(CONNECTION_STRING, props);
-        User user = new User("Mitio", 20);
+        User mitio = new User("Mitio", 20);
         DbContext<User> dbContext = getDbContext(connection, User.class);
-        List<User> users = dbContext.find();
-        users.forEach(System.out::println);
-        System.out.println("-----------------------");
-        System.out.println(dbContext.findFirst("id = 13"));
-        System.out.println(dbContext.findFirst());
+        dbContext.persist(mitio);
+        dbContext.find("username LIKE 'm%'")
+        .forEach(System.out::println);
         connection.close();
     }
 

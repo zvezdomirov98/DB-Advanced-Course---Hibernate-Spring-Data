@@ -5,7 +5,7 @@ import java.sql.SQLException;
 import java.util.List;
 
 public interface DbContext<T> {
-    boolean persist(T entity);
+    boolean persist(T entity) throws IllegalAccessException, SQLException;
 
     T findFirst() throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException;
 

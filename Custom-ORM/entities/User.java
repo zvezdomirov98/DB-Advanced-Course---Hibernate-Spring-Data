@@ -4,7 +4,8 @@ import db.annotations.Column;
 import db.annotations.Entity;
 import db.annotations.Primary;
 
-import java.util.Date;
+import java.sql.Date;
+import java.text.DateFormat;
 
 @Entity(name = "users")
 public class User {
@@ -21,12 +22,13 @@ public class User {
     private Date registrationDate;
 
     public User() {
-
+        setRegistrationDate();
     }
 
     public User(String username, int age) {
         setUsername(username);
         setAge(age);
+        setRegistrationDate();
     }
 
     public long getId() {
@@ -53,8 +55,8 @@ public class User {
         return registrationDate;
     }
 
-    public void setRegistrationDate(Date registrationDate) {
-        this.registrationDate = registrationDate;
+    private void setRegistrationDate() {
+        this.registrationDate = new java.sql.Date(new java.util.Date().getTime());
     }
 
     @Override
