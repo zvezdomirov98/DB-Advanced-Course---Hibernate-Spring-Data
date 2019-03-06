@@ -33,6 +33,8 @@ public class EntityManager<T> implements DbContext<T> {
             "UPDATE {0} {1} WHERE {2}";
     private static final String SET_TEMPLATE =
             "SET {0} = {1}";
+    private static final String CREATE_TABLE_TEMPLATE =
+            "CREATE TABLE {0}({1});";
     private Connection dbConnection;
     private Class<T> klass;
 
@@ -41,16 +43,6 @@ public class EntityManager<T> implements DbContext<T> {
         this.klass = klass;
     }
 
-    private Field   getPrimaryKeyField() {
-        return Arrays.stream(
-                klass.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(Primary.class))
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException(
-                        "Class " + klass.getName() +
-                                " has no primary key annotation present."
-                ));
-    }
 
     @Override
     public boolean persist(T entity) throws IllegalAccessException, SQLException, NoSuchMethodException, InvocationTargetException, InstantiationException {
@@ -64,6 +56,95 @@ public class EntityManager<T> implements DbContext<T> {
         }
     }
 
+    @Override
+    public void delete(T entity) {
+
+    }
+
+    @Override
+    public T findFirst()
+            throws SQLException, InvocationTargetException,
+            NoSuchMethodException, InstantiationException,
+            IllegalAccessException {
+        return findFirst(null);
+    }
+
+    @Override
+    public T findFirst(String where) throws NoSuchMethodException, IllegalAccessException, InstantiationException, SQLException, InvocationTargetException {
+
+        String template =
+                where == null ?
+                        SELECT_SINGLE_QUERY_TEMPLATE :
+                        SELECT_SINGLE_WHERE_QUERY_TEMPLATE;
+        return find(where, template).get(0);
+    }
+
+    @Override
+    public List<T> find(String where) throws
+            SQLException, InvocationTargetException,
+            NoSuchMethodException, InstantiationException,
+            IllegalAccessException {
+        String template =
+                where == null ?
+                        SELECT_QUERY_TEMPLATE :
+                        SELECT_WHERE_QUERY_TEMPLATE;
+        return find(where, template);
+    }
+
+    @Override
+    public List<T> find()
+            throws SQLException, InvocationTargetException,
+            NoSuchMethodException, InstantiationException,
+            IllegalAccessException {
+        return find(null);
+    }
+
+    private Field getPrimaryKeyField() {
+        return Arrays.stream(
+                klass.getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Primary.class))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException(
+                        "Class " + klass.getName() +
+                                " has no primary key annotation present."
+                ));
+    }
+
+    //TODO: Map the fields to appropriate MySQL data types
+    private <T> void doCreate(Class<T> entity) throws SQLException {
+        String tableName = getTableName();
+        String tableParameters = String.join(
+                ",\n",
+                getTableParameters(tableName));
+        String createQuery = MessageFormat
+                .format(
+                        CREATE_TABLE_TEMPLATE,
+                        tableName,
+                        tableParameters
+                );
+        dbConnection.prepareStatement(createQuery).executeUpdate();
+    }
+
+    private List<String> getTableParameters(String tableName) {
+
+        return null;
+    }
+
+    private List<T> find(String where, String template)
+            throws InvocationTargetException, NoSuchMethodException,
+            InstantiationException, SQLException,
+            IllegalAccessException {
+
+        String query =
+                MessageFormat.format(
+                        template,
+                        getTableName(),
+                        where);
+        PreparedStatement preparedStatement = dbConnection.prepareStatement(query);
+        ResultSet resultSet = preparedStatement.executeQuery();
+        return toList(resultSet);
+    }
+
     private boolean doUpdate(T entity)
             throws IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException, SQLException {
 
@@ -72,8 +153,8 @@ public class EntityManager<T> implements DbContext<T> {
         primaryKeyField.setAccessible(true);
         String whereQuery =
                 primaryKeyField.getName() +
-                " = " +
-                primaryKeyField.get(entity).toString();
+                        " = " +
+                        primaryKeyField.get(entity).toString();
         T dbEntity = findFirst(whereQuery);
         List<Field> differentColumns =
                 getColumnFields().stream()
@@ -101,7 +182,7 @@ public class EntityManager<T> implements DbContext<T> {
                                     columnName,
                                     newValue
                             ))
-            .append(", ");
+                    .append(", ");
         }
         setQueryTemplate.replace(
                 setQueryTemplate.length() - 2,
@@ -113,7 +194,7 @@ public class EntityManager<T> implements DbContext<T> {
                         getTableName(),
                         setQueryTemplate,
                         whereQuery
-                        );
+                );
         int rowsAffected = dbConnection.prepareStatement(updateQuery).executeUpdate();
         return rowsAffected != 0;
     }
@@ -163,64 +244,6 @@ public class EntityManager<T> implements DbContext<T> {
                 .collect(Collectors.toList());
     }
 
-    @Override
-    public void delete(T entity) {
-
-    }
-
-    @Override
-    public T findFirst()
-            throws SQLException, InvocationTargetException,
-            NoSuchMethodException, InstantiationException,
-            IllegalAccessException {
-        return findFirst(null);
-    }
-
-    @Override
-    public T findFirst(String where) throws NoSuchMethodException, IllegalAccessException, InstantiationException, SQLException, InvocationTargetException {
-
-        String template =
-                where == null ?
-                        SELECT_SINGLE_QUERY_TEMPLATE :
-                        SELECT_SINGLE_WHERE_QUERY_TEMPLATE;
-        return find(where, template).get(0);
-    }
-
-    @Override
-    public List<T> find(String where) throws
-            SQLException, InvocationTargetException,
-            NoSuchMethodException, InstantiationException,
-            IllegalAccessException {
-        String template =
-                where == null ?
-                        SELECT_QUERY_TEMPLATE :
-                        SELECT_WHERE_QUERY_TEMPLATE;
-        return find(where, template);
-    }
-
-    @Override
-    public List<T> find()
-            throws SQLException, InvocationTargetException,
-            NoSuchMethodException, InstantiationException,
-            IllegalAccessException {
-        return find(null);
-    }
-
-    private List<T> find(String where, String template)
-            throws InvocationTargetException, NoSuchMethodException,
-            InstantiationException, SQLException,
-            IllegalAccessException {
-
-        String query =
-                MessageFormat.format(
-                        template,
-                        getTableName(),
-                        where);
-        PreparedStatement preparedStatement = dbConnection.prepareStatement(query);
-        ResultSet resultSet = preparedStatement.executeQuery();
-        return toList(resultSet);
-    }
-
     private List<T> toList(ResultSet resultSet) throws
             NoSuchMethodException, IllegalAccessException,
             InvocationTargetException, InstantiationException,
@@ -260,10 +283,7 @@ public class EntityManager<T> implements DbContext<T> {
 
     private void setEntityColumns(ResultSet resultSet,
                                   T entity) throws SQLException, IllegalAccessException {
-        List<Field> columnFields = Arrays.stream(klass.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(Column.class))
-                .collect(Collectors.toList());
-
+        List<Field> columnFields = getColumnFields();
         for (Field columnField : columnFields) {
             String fieldName = columnField
                     .getAnnotation(Column.class)

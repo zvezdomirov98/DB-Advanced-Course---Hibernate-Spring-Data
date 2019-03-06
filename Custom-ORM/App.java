@@ -24,7 +24,7 @@ public class App {
                 .getConnection(CONNECTION_STRING, props);
         DbContext<User> dbContext = getDbContext(connection, User.class);
         User maria = dbContext.findFirst("username = 'maria'");
-        maria.setAge(20);
+        maria.setAge(21);
         dbContext.persist(maria);
         connection.close();
     }
