@@ -1,11 +1,10 @@
+import entities.Employee;
 import entities.Town;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.Persistence;
+import javax.persistence.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -35,5 +34,23 @@ public class App {
                     }
                 });
         em.getTransaction().commit();
+    }
+
+    /*Problem 2: Contains Employee*/
+    private static boolean isEmployeeInDb(String empName) {
+        String query =
+                "FROM Employee " +
+                        "WHERE concat(first_name, ' ', last_name) = :name";
+
+        em.getTransaction().begin();
+        try {
+            Employee employee = em.createQuery(query, Employee.class)
+                    .setParameter("name", empName)
+                    .getSingleResult();
+            return employee != null;
+        } catch (NoResultException e) {
+            return false;
+        }
+
     }
 }
