@@ -22,11 +22,10 @@ public class App {
         props.setProperty("password", DB_PASSWORD);
         Connection connection = DriverManager
                 .getConnection(CONNECTION_STRING, props);
-        User mitio = new User("Mitio", 20);
         DbContext<User> dbContext = getDbContext(connection, User.class);
-        dbContext.persist(mitio);
-        dbContext.find("username LIKE 'm%'")
-        .forEach(System.out::println);
+        User maria = dbContext.findFirst("username = 'maria'");
+        maria.setAge(20);
+        dbContext.persist(maria);
         connection.close();
     }
 

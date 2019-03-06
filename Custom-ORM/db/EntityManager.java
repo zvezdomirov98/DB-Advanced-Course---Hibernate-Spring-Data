@@ -41,7 +41,7 @@ public class EntityManager<T> implements DbContext<T> {
         this.klass = klass;
     }
 
-    private Field getPrimaryKeyField() {
+    private Field   getPrimaryKeyField() {
         return Arrays.stream(
                 klass.getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Primary.class))
@@ -53,7 +53,7 @@ public class EntityManager<T> implements DbContext<T> {
     }
 
     @Override
-    public boolean persist(T entity) throws IllegalAccessException, SQLException {
+    public boolean persist(T entity) throws IllegalAccessException, SQLException, NoSuchMethodException, InvocationTargetException, InstantiationException {
         Field primaryKeyField = getPrimaryKeyField();
         primaryKeyField.setAccessible(true);
         Object currentValue = primaryKeyField.get(entity);
@@ -64,30 +64,68 @@ public class EntityManager<T> implements DbContext<T> {
         }
     }
 
-    private boolean doUpdate(T entity) {
+    private boolean doUpdate(T entity)
+            throws IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException, SQLException {
 
-        return false;
+        //Check which properties are different from DB
+        Field primaryKeyField = getPrimaryKeyField();
+        primaryKeyField.setAccessible(true);
+        String whereQuery =
+                primaryKeyField.getName() +
+                " = " +
+                primaryKeyField.get(entity).toString();
+        T dbEntity = findFirst(whereQuery);
+        List<Field> differentColumns =
+                getColumnFields().stream()
+                        .filter(field -> {
+                            field.setAccessible(true);
+                            try {
+                                return !field.get(entity)
+                                        .equals(field.get(dbEntity));
+                            } catch (IllegalAccessException e) {
+                                e.printStackTrace();
+                            }
+                            return false;
+                        })
+                        .collect(Collectors.toList());
+
+        StringBuilder setQueryTemplate = new StringBuilder();
+
+        for (Field column : differentColumns) {
+            String columnName = column.getName();
+            String newValue = column.get(entity).toString();
+            setQueryTemplate
+                    .append(MessageFormat
+                            .format(
+                                    SET_TEMPLATE,
+                                    columnName,
+                                    newValue
+                            ))
+            .append(", ");
+        }
+        setQueryTemplate.replace(
+                setQueryTemplate.length() - 2,
+                setQueryTemplate.length() - 1,
+                " ");
+        String updateQuery = MessageFormat
+                .format(
+                        UPDATE_QUERY_TEMPLATE,
+                        getTableName(),
+                        setQueryTemplate,
+                        whereQuery
+                        );
+        int rowsAffected = dbConnection.prepareStatement(updateQuery).executeUpdate();
+        return rowsAffected != 0;
     }
 
     private boolean doInsert(T entity) throws SQLException {
-        List<Field> columnFields = Arrays.stream(klass.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(Column.class))
-                .collect(Collectors.toList());
-        String columnNames = columnFields.stream()
-                .map(field -> field.getAnnotation(Column.class).name())
-                .collect(Collectors.joining(", "));
 
-        String columnValues = columnFields.stream()
-                .map(field -> {
-                    field.setAccessible(true);
-                    try {
-                        Object value = field.get(entity);
-                            return String.format("\'%s\'", value.toString());
-                    } catch (IllegalAccessException e) {
-                        e.printStackTrace();
-                    }
-                    return null;
-                })
+        List<Field> columnFields = getColumnFields();
+
+        String columnNames = String.join(", ", getColumnNames(columnFields));
+
+        String columnValues = getColumnValues(columnFields, entity).stream()
+                .map(value -> "'" + value + "'")
                 .collect(Collectors.joining(", "));
 
         String query = MessageFormat.format(
@@ -97,6 +135,32 @@ public class EntityManager<T> implements DbContext<T> {
                 columnValues
         );
         return dbConnection.prepareStatement(query).execute();
+    }
+
+    private List<String> getColumnValues(List<Field> columnFields,
+                                         T entity) {
+        return columnFields.stream()
+                .map(field -> {
+                    try {
+                        return field.get(entity).toString();
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                    }
+                    return null;
+                })
+                .collect(Collectors.toList());
+    }
+
+    private List<String> getColumnNames(List<Field> columnFields) {
+        return columnFields.stream()
+                .map(field -> field.getAnnotation(Column.class).name())
+                .collect(Collectors.toList());
+    }
+
+    private List<Field> getColumnFields() {
+        return Arrays.stream(klass.getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Column.class))
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -213,7 +277,7 @@ public class EntityManager<T> implements DbContext<T> {
                 columnField.set(entity, resultSet.getLong(fieldName));
             } else if (columnField.getType() == String.class) {
                 columnField.set(entity, resultSet.getString(fieldName));
-            } else if (columnField.getType() == Date.class) {
+            } else if (columnField.getType() == java.sql.Date.class) {
                 columnField.set(entity, resultSet.getDate(fieldName));
             }
         }

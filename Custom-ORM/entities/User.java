@@ -22,17 +22,21 @@ public class User {
     private Date registrationDate;
 
     public User() {
-        setRegistrationDate();
     }
 
-    public User(String username, int age) {
+    public User(String username, int age,
+                Date registrationDate) {
         setUsername(username);
         setAge(age);
-        setRegistrationDate();
+        setRegistrationDate(registrationDate);
     }
 
     public long getId() {
         return id;
+    }
+
+    public void setId(long id) {
+        this.id = id;
     }
 
     public String getUsername() {
@@ -55,16 +59,20 @@ public class User {
         return registrationDate;
     }
 
-    private void setRegistrationDate() {
-        this.registrationDate = new java.sql.Date(new java.util.Date().getTime());
+    public void setRegistrationDate(Date registrationDate) {
+        this.registrationDate = registrationDate;
     }
 
     @Override
     public String toString() {
+        String registrationDate =
+                getRegistrationDate() == null ?
+                        "Not registered yet":
+                        getRegistrationDate().toString();
         return String.format("%d | %s | %d | %s",
                 getId(),
                 getUsername(),
                 getAge(),
-                getRegistrationDate().toString());
+                registrationDate);
     }
 }
