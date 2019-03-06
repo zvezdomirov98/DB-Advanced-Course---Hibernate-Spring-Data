@@ -1,12 +1,11 @@
+import entities.Address;
 import entities.Employee;
 import entities.Town;
-import org.hibernate.Session;
-import org.hibernate.SessionFactory;
-import org.hibernate.cfg.Configuration;
 
 import javax.persistence.*;
+import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class App {
 
@@ -51,6 +50,47 @@ public class App {
         } catch (NoResultException e) {
             return false;
         }
+    }
 
+    /*Problem 3: Employees with salary over 50000*/
+    private static List<String> getHighSalaryNames(BigDecimal salaryLowerBound) {
+        String query =
+                "SELECT firstName FROM Employee WHERE salary > :salary";
+        return em.createQuery(query, String.class)
+                .setParameter("salary", salaryLowerBound)
+                .getResultList();
+    }
+
+    /*Problem 4: Employees from Department*/
+    private static List<Employee> getEmpsFromDept(String department) {
+        String query =
+                "FROM Employee WHERE department.name = :name";
+        return em.createQuery(query, Employee.class)
+                .setParameter("name", department)
+                .getResultList();
+    }
+
+    /*Problem 5: Adding a New Address and
+        Updating Employee*/
+    private static void addNewAddress(Address address) {
+        em.getTransaction().begin();
+        em.persist(address);
+        em.getTransaction().commit();
+    }
+
+    private static void updateEmployeeAddress(
+            Address newAddress, String lastName) {
+        em.getTransaction().begin();
+        String selectEmpQuery =
+                "FROM Employee WHERE lastName = :lastName";
+        Employee targetEmp = em
+                .createQuery(selectEmpQuery, Employee.class)
+                .setParameter("lastName", lastName)
+                .getSingleResult();
+        targetEmp.setAddress(newAddress);
+        newAddress.getEmployees().add(targetEmp);
+        em.persist(targetEmp);
+        em.persist(newAddress);
+        em.getTransaction().commit();
     }
 }
