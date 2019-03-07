@@ -35,6 +35,7 @@ public class EntityManager<T> implements DbContext<T> {
             "SET {0} = {1}";
     private static final String CREATE_TABLE_TEMPLATE =
             "CREATE TABLE {0}({1});";
+    private static final String CHECK_IF_TABLE_EXIST_QUERY = "SHOW TABLES LIKE {0}";
     private Connection dbConnection;
     private Class<T> klass;
 
@@ -46,6 +47,9 @@ public class EntityManager<T> implements DbContext<T> {
 
     @Override
     public boolean persist(T entity) throws IllegalAccessException, SQLException, NoSuchMethodException, InvocationTargetException, InstantiationException {
+        if (!doesTableExist()) {
+            doCreate();
+        }
         Field primaryKeyField = getPrimaryKeyField();
         primaryKeyField.setAccessible(true);
         Object currentValue = primaryKeyField.get(entity);
@@ -56,11 +60,23 @@ public class EntityManager<T> implements DbContext<T> {
         }
     }
 
+    private boolean doesTableExist() throws SQLException {
+        String query = MessageFormat
+                .format(CHECK_IF_TABLE_EXIST_QUERY,
+                        "'" + getTableName() + "'");
+        ResultSet resultSet =
+                dbConnection
+                        .prepareStatement(query)
+                        .executeQuery();
+        return resultSet.next();
+    }
+
     @Override
-    public void delete(T entity) {
+    public void delete(T entity) throws SQLException {
 
     }
 
+    //TODO: Bug when the element is not in the DB
     @Override
     public T findFirst()
             throws SQLException, InvocationTargetException,
@@ -110,12 +126,11 @@ public class EntityManager<T> implements DbContext<T> {
                 ));
     }
 
-    //TODO: Map the fields to appropriate MySQL data types
-    private <T> void doCreate(Class<T> entity) throws SQLException {
+    private void doCreate() throws SQLException {
         String tableName = getTableName();
         String tableParameters = String.join(
                 ",\n",
-                getTableParameters(tableName));
+                getTableParameters());
         String createQuery = MessageFormat
                 .format(
                         CREATE_TABLE_TEMPLATE,
@@ -125,9 +140,51 @@ public class EntityManager<T> implements DbContext<T> {
         dbConnection.prepareStatement(createQuery).executeUpdate();
     }
 
-    private List<String> getTableParameters(String tableName) {
+    private List<String> getTableParameters() {
+        List<Field> javaFields = Arrays.asList(klass.getDeclaredFields());
+        return parseToSqlTypes(javaFields);
+    }
 
-        return null;
+    private List<String> parseToSqlTypes(List<Field> javaFields) {
+        final String VARCHAR_DEFAULT = "VARCHAR(250)";
+        final String INT_DEFAULT = "INT";
+        final String DATE_DEFAULT = "DATE";
+        final String FLOAT_DEFAULT = "FLOAT";
+        final String PRIMARY_KEY_POSTFIX = " PRIMARY KEY NOT NULL";
+
+        List<String> result = new ArrayList<>();
+
+        for (Field javaField : javaFields) {
+            String current = javaField.getName() + " ";
+            Class<?> fieldType = javaField.getType();
+            if (fieldType == String.class) {
+
+                current += VARCHAR_DEFAULT;
+            } else if (fieldType == Integer.class ||
+                    fieldType == int.class ||
+                    fieldType == Long.class ||
+                    fieldType == long.class) {
+
+                current += INT_DEFAULT;
+            } else if (fieldType == Double.class ||
+                    fieldType == double.class ||
+                    fieldType == Float.class ||
+                    fieldType == float.class) {
+
+                current += FLOAT_DEFAULT;
+            } else if (fieldType == java.sql.Date.class) {
+
+                current += DATE_DEFAULT;
+            }
+            if (javaField.isAnnotationPresent(Primary.class)) {
+                current += PRIMARY_KEY_POSTFIX;
+                if (current.contains(" " + INT_DEFAULT + " ")) {
+                    current += " AUTO_INCREMENT";
+                }
+            }
+            result.add(current);
+        }
+        return result;
     }
 
     private List<T> find(String where, String template)
@@ -234,7 +291,10 @@ public class EntityManager<T> implements DbContext<T> {
 
     private List<String> getColumnNames(List<Field> columnFields) {
         return columnFields.stream()
-                .map(field -> field.getAnnotation(Column.class).name())
+                .map(field -> {
+                    field.setAccessible(true);
+                    return field.getAnnotation(Column.class).name();
+                })
                 .collect(Collectors.toList());
     }
 
@@ -290,15 +350,21 @@ public class EntityManager<T> implements DbContext<T> {
                     .name();
 
             columnField.setAccessible(true);
-            if (columnField.getType() == Long.class ||
-                    columnField.getType() == long.class ||
-                    columnField.getType() == Integer.class ||
-                    columnField.getType() == int.class) {
+            Class<?> fieldType = columnField.getType();
+            if (fieldType == Long.class ||
+                    fieldType == long.class ||
+                    fieldType == Integer.class ||
+                    fieldType == int.class) {
                 columnField.set(entity, resultSet.getLong(fieldName));
-            } else if (columnField.getType() == String.class) {
+            } else if (fieldType == String.class) {
                 columnField.set(entity, resultSet.getString(fieldName));
-            } else if (columnField.getType() == java.sql.Date.class) {
+            } else if (fieldType == java.sql.Date.class) {
                 columnField.set(entity, resultSet.getDate(fieldName));
+            } else if (fieldType == Double.class ||
+            fieldType == double.class ||
+            fieldType == Float.class ||
+            fieldType == float.class) {
+                columnField.set(entity, resultSet.getDouble(fieldName));
             }
         }
     }

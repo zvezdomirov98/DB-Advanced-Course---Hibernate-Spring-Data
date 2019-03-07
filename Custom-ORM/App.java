@@ -1,5 +1,6 @@
 import db.base.DbContext;
 import db.EntityManager;
+import entities.Product;
 import entities.User;
 
 import java.lang.reflect.InvocationTargetException;
@@ -22,10 +23,15 @@ public class App {
         props.setProperty("password", DB_PASSWORD);
         Connection connection = DriverManager
                 .getConnection(CONNECTION_STRING, props);
-        DbContext<User> dbContext = getDbContext(connection, User.class);
-        User maria = dbContext.findFirst("username = 'maria'");
-        maria.setAge(21);
-        dbContext.persist(maria);
+        DbContext<Product> dbContext = getDbContext(connection, Product.class);
+        Product cottageCheese = new Product("Billa", 1.99);
+        dbContext.persist(cottageCheese);
+        dbContext.find().stream()
+                .map(Product::toString)
+                .forEach(System.out::println);
+//        User maria = dbContext.findFirst("username = 'maria'");
+//        maria.setAge(21);
+//        dbContext.persist(maria);
         connection.close();
     }
 

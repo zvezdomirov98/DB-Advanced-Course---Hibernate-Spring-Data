@@ -15,5 +15,5 @@ public interface DbContext<T> {
 
     List<T> find(String where) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException;
 
-    void delete(T entity);
+    void delete(T entity) throws SQLException;
 }
