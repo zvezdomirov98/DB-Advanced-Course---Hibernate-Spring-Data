@@ -10,6 +10,7 @@ public class Town {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+
     @Column(name = "town_id")
     public Integer getId() {
         return id;

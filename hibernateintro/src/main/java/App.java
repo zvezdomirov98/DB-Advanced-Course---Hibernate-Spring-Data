@@ -1,11 +1,10 @@
-import entities.Address;
-import entities.Employee;
-import entities.Town;
+import entities.*;
 
 import javax.persistence.*;
+import javax.persistence.criteria.CriteriaBuilder;
 import java.math.BigDecimal;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class App {
 
@@ -15,8 +14,8 @@ public class App {
         EntityManagerFactory emf = Persistence
                 .createEntityManagerFactory("soft_uni");
         em = emf.createEntityManager();
+        getDepartmentsMaxSalary();
     }
-
 
     /*Problem 1: Remove Objects*/
     private static void setLongNamesToLower() {
@@ -92,5 +91,179 @@ public class App {
         em.persist(targetEmp);
         em.persist(newAddress);
         em.getTransaction().commit();
+    }
+
+    /*Problem 6: Addresses with employee count*/
+    private static HashMap<String, Integer> getAddressesEmpCount() {
+
+        List<Address> addresses = em
+                .createQuery(
+                        "FROM Address",
+                        Address.class)
+                .getResultList();
+        HashMap<String, Integer> result = new HashMap<>();
+        addresses
+                .forEach(a -> result.put(
+                        a.getText(),
+                        a.getEmployees().size()));
+        return result;
+    }
+
+    /*Problem 7: Get Employee With Project*/
+    private static Employee getEmpById(int id) {
+        return em.createQuery(
+                "FROM Employee WHERE id = :param", Employee.class)
+                .setParameter("param", id)
+                .getSingleResult();
+    }
+
+    private static void printEmployeeInfo(Employee employee) {
+        String employeeProjects =
+                employee.getProjects().stream()
+                        .map(Project::getName)
+                        .sorted(Comparator.reverseOrder())
+                        .collect(Collectors.joining("\n\t"));
+        System.out.printf("%s %s - %s\n\t%s",
+                employee.getFirstName(),
+                employee.getLastName(),
+                employee.getJobTitle(),
+                employeeProjects);
+    }
+
+    /*Problem 8: Find Latest 10 Projects*/
+    private static List<Project> findLastStartedProjects() {
+        TypedQuery<Project> query =
+                em.createQuery(
+                        "FROM Project " +
+                                "ORDER BY startDate DESC",
+                        Project.class);
+        query.setMaxResults(10);
+        return query.getResultList();
+    }
+
+    private static void printProjectInfo(Project project) {
+        System.out.printf(
+                "Project name: %s\n" +
+                        "\tProject description: %s\n" +
+                        "\tProject start date: %s\n" +
+                        "\tProject end date: %s\n",
+                project.getName(),
+                project.getDescription(),
+                project.getStartDate(),
+                project.getEndDate());
+    }
+
+    /*Problem 9: Increase Salaries*/
+    private static List<Employee> getEmpFromDept(String depName) {
+        return em.createQuery(
+                "FROM Employee " +
+                        "WHERE department.name = :name",
+                Employee.class)
+                .setParameter("name", depName)
+                .getResultList();
+    }
+
+    private static void increaseEmpSalary(Employee emp) {
+        emp.setSalary(
+                emp.getSalary().multiply(
+                        new BigDecimal(1.12)));
+        inTransaction(() -> em.persist(emp));
+    }
+
+    private static void printEmpSalaryInfo(Employee emp) {
+        System.out.printf(
+                "%s %s ($%.2f)\n",
+                emp.getFirstName(),
+                emp.getLastName(),
+                emp.getSalary());
+    }
+
+    private static void inTransaction(Runnable runnable) {
+        em.getTransaction().begin();
+        runnable.run();
+        em.getTransaction().commit();
+    }
+
+    private static void testProblem9() {
+        String[] promoteDepartments = {
+                "Engineering",
+                "Tool Design",
+                "Marketing",
+                "Information Services"
+        };
+        for (String department : promoteDepartments) {
+            getEmpFromDept(department)
+                    .forEach(e -> {
+                        increaseEmpSalary(e);
+                        printEmpSalaryInfo(e);
+                    });
+        }
+    }
+
+    /*Problem 10: Remove Towns*/
+    private static int removeTown(String townName) {
+        Town townToRemove = em.createQuery(
+                "FROM Town WHERE name = :name", Town.class)
+                .setParameter("name", townName)
+                .getSingleResult();
+        List<Address> addressesFromTown = getTownAddresses(townToRemove);
+
+        inTransaction(() -> {
+            addressesFromTown
+                    .forEach(em::remove);
+            em.remove(townToRemove);
+        });
+        return addressesFromTown.size();
+    }
+
+    private static List<Address> getTownAddresses(Town town) {
+        return em.createQuery(
+                "FROM Address WHERE town = :town",
+                Address.class)
+                .setParameter("town", town)
+                .getResultList();
+    }
+
+    private static void testProblem10(String townToRemove) {
+        int removedAddresses = removeTown(townToRemove);
+        String addressPostfix =
+                removedAddresses == 1 ?
+                        "" :
+                        "es";
+        System.out.printf(
+                "%d address%s in %s deleted",
+                removedAddresses,
+                addressPostfix,
+                townToRemove
+        );
+    }
+
+    /*Problem 11: Find Employees by First Name*/
+    private static List<Employee> getEmpsByPattern(String pattern) {
+        return em.createQuery(
+                "FROM Employee WHERE UPPER(firstName) " +
+                        "LIKE UPPER(:pattern) ",
+                Employee.class)
+                .setParameter("pattern", pattern + "%")
+                .getResultList();
+    }
+
+    private static void printEmpJobSalary(Employee employee) {
+        System.out.printf(
+                "%s %s - %s - ($%s)\n",
+                employee.getFirstName(),
+                employee.getLastName(),
+                employee.getJobTitle(),
+                employee.getSalary());
+    }
+
+    private static void testProblem11(String pattern) {
+        getEmpsByPattern(pattern)
+                .forEach(App::printEmpJobSalary);
+    }
+
+    /*Problem 12: Employees Maximum Salaries*/
+    private static void getDepartmentsMaxSalary() {
+
     }
 }

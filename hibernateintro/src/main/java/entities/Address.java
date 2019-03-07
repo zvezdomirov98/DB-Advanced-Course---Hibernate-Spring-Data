@@ -32,7 +32,10 @@ public class Address {
     }
 
     @ManyToOne
-    @JoinColumn(name = "town_id",referencedColumnName = "town_id")
+    @JoinColumn(
+            name = "town_id",
+            referencedColumnName = "town_id"
+    )
     public Town getTown() {
         return town;
     }
