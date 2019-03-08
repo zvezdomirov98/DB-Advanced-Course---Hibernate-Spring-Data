@@ -12,6 +12,9 @@ public class Product {
     @Column(name = "name")
     private String name;
 
+    @Column(name = "batch")
+    private String batch;
+
     @Column(name = "price")
     private double price;
 
@@ -22,6 +25,14 @@ public class Product {
     public Product(String name, double price) {
         setName(name);
         setPrice(price);
+    }
+
+    public String getBatch() {
+        return batch;
+    }
+
+    public void setBatch(String batch) {
+        this.batch = batch;
     }
 
     public String getName() {
@@ -46,5 +57,13 @@ public class Product {
                 "%s - $%.2f",
                 getName(),
                 getPrice());
+    }
+
+    public long getId() {
+        return id;
+    }
+
+    public void setId(long id) {
+        this.id = id;
     }
 }

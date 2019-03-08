@@ -7,10 +7,7 @@ import db.base.DbContext;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,6 +46,8 @@ public class EntityManager<T> implements DbContext<T> {
     public boolean persist(T entity) throws IllegalAccessException, SQLException, NoSuchMethodException, InvocationTargetException, InstantiationException {
         if (!doesTableExist()) {
             doCreate();
+        } else if (!areColumnsPersistent()) {
+            doAlter();
         }
         Field primaryKeyField = getPrimaryKeyField();
         primaryKeyField.setAccessible(true);
@@ -58,6 +57,23 @@ public class EntityManager<T> implements DbContext<T> {
         } else {
             return this.doUpdate(entity);
         }
+    }
+
+    private void doAlter() {
+
+    }
+
+    private boolean areColumnsPersistent() throws SQLException {
+        DatabaseMetaData dbmd = dbConnection.getMetaData();
+        ResultSet columns =
+                dbmd.getColumns(null,null,null,null);
+
+        int i = 1;
+        while(columns.next()) {
+            columns.getMetaData().getColumnName(i);
+            i++;
+        }
+        return false;
     }
 
     private boolean doesTableExist() throws SQLException {

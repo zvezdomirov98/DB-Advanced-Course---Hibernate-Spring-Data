@@ -24,7 +24,9 @@ public class App {
         Connection connection = DriverManager
                 .getConnection(CONNECTION_STRING, props);
         DbContext<Product> dbContext = getDbContext(connection, Product.class);
-        Product cottageCheese = new Product("Billa", 1.99);
+        Product cottageCheese = new Product("Olympus", 2.79);
+        cottageCheese.setBatch("LSAKDJWFA1");
+        cottageCheese.setId(3);
         dbContext.persist(cottageCheese);
         dbContext.find().stream()
                 .map(Product::toString)
