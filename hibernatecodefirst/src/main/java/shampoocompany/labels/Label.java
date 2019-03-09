@@ -1,0 +1,17 @@
+package shampoocompany.labels;
+
+import java.io.Serializable;
+
+public interface Label extends Serializable {
+    long getId();
+
+    void setId(long id);
+
+    String getTitle();
+
+    void setTitle(String title);
+
+    String getSubTitle();
+
+    void setSubTitle(String subTitle);
+}
