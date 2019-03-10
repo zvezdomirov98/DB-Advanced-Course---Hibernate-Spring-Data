@@ -3,6 +3,7 @@ package shampoocompany.labels;
 import java.io.Serializable;
 
 public interface Label extends Serializable {
+
     long getId();
 
     void setId(long id);
@@ -11,7 +12,7 @@ public interface Label extends Serializable {
 
     void setTitle(String title);
 
-    String getSubTitle();
+    String getSubtitle();
 
-    void setSubTitle(String subTitle);
+    void setSubtitle(String subtitle);
 }

@@ -1,25 +1,33 @@
 package shampoocompany.shampoos;
 
-import org.hibernate.engine.jdbc.Size;
 import shampoocompany.ingredients.BasicIngredient;
+import shampoocompany.labels.BasicLabel;
+import shampoocompany.labels.ProductionBatch;
+import shampoocompany.labels.Size;
 
+import javax.persistence.*;
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.Set;
 
+@Entity
+@Table(name = "shampoos")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "shampoo_type",
+        discriminatorType = DiscriminatorType.STRING)
 public class BasicShampoo implements Shampoo {
     private long id;
     private String brand;
     private BigDecimal price;
     private Size size;
     private BasicLabel label;
-    private ProductionBatch batch;
     private Set<BasicIngredient> ingredients;
 
-    public BasicShampoo() {
-
+    protected BasicShampoo() {
+        this.setIngredients(new HashSet<>());
     }
 
-    public BasicShampoo(String brand,
+    BasicShampoo(String brand,
                         BigDecimal price,
                         Size size,
                         BasicLabel label) {
@@ -27,8 +35,12 @@ public class BasicShampoo implements Shampoo {
         setPrice(price);
         setSize(size);
         setLabel(label);
+        setIngredients(new HashSet<>());
     }
 
+    @Id
+    @Column
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Override
     public long getId() {
         return this.id;
@@ -39,8 +51,9 @@ public class BasicShampoo implements Shampoo {
         this.id = id;
     }
 
+    @Column
     @Override
-    public String getBrand() {
+    public String getBrand()  {
         return this.brand;
     }
 
@@ -49,6 +62,7 @@ public class BasicShampoo implements Shampoo {
         this.brand = brand;
     }
 
+    @Column
     @Override
     public BigDecimal getPrice() {
         return this.price;
@@ -59,6 +73,7 @@ public class BasicShampoo implements Shampoo {
         this.price = price;
     }
 
+    @Enumerated
     @Override
     public Size getSize() {
         return this.size;
@@ -69,6 +84,10 @@ public class BasicShampoo implements Shampoo {
         this.size = size;
     }
 
+    @OneToOne(optional = true, cascade = CascadeType.ALL,
+            fetch = FetchType.LAZY)
+    @JoinColumn(name = "label",
+            referencedColumnName = "id")
     @Override
     public BasicLabel getLabel() {
         return this.label;
@@ -79,16 +98,13 @@ public class BasicShampoo implements Shampoo {
         this.label = label;
     }
 
-    @Override
-    public ProductionBatch getBatch() {
-        return this.batch;
-    }
-
-    @Override
-    public void setBatch(ProductionBatch batch) {
-        this.batch = batch;
-    }
-
+    @ManyToMany(cascade = CascadeType.ALL,
+            fetch = FetchType.LAZY)
+    @JoinTable(name = "shampoos_ingredients",
+            joinColumns = @JoinColumn(name = "shampoo_id",
+                    referencedColumnName = "id"),
+            inverseJoinColumns = @JoinColumn(name = "ingredient_id",
+                    referencedColumnName = "id"))
     @Override
     public Set<BasicIngredient> getIngredients() {
         return this.ingredients;

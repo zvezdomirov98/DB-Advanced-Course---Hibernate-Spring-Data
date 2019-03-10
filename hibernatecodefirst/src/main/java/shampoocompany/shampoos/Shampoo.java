@@ -1,12 +1,14 @@
 package shampoocompany.shampoos;
 
-import org.hibernate.engine.jdbc.Size;
 import shampoocompany.ingredients.BasicIngredient;
+import shampoocompany.labels.BasicLabel;
+import shampoocompany.labels.Size;
 
 import java.math.BigDecimal;
 import java.util.Set;
 
 public interface Shampoo {
+
     long getId();
 
     void setId(long id);
@@ -26,10 +28,6 @@ public interface Shampoo {
     BasicLabel getLabel();
 
     void setLabel(BasicLabel label);
-
-    ProductionBatch getBatch();
-
-    void setBatch(ProductionBatch batch);
 
     Set<BasicIngredient> getIngredients();
 

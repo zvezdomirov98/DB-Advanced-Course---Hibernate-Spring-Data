@@ -1,33 +1,35 @@
 package shampoocompany.ingredients;
 
+import shampoocompany.shampoos.BasicShampoo;
 import shampoocompany.shampoos.Shampoo;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
 import java.math.BigDecimal;
 import java.util.List;
 
 @Entity()
 @Table(name = "ingredients")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "ingredient_type",
+        discriminatorType = DiscriminatorType.STRING)
 public class BasicIngredient {
     private long id;
     private String name;
     private BigDecimal price;
-    private List<Shampoo> shampoos;
+    private List<BasicShampoo> shampoos;
 
     public BasicIngredient() {
 
     }
 
-    public BasicIngredient(String name, BigDecimal price) {
+    protected BasicIngredient(String name, BigDecimal price) {
         setName(name);
         setPrice(price);
     }
 
     @Id
     @Column
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     public long getId() {
         return id;
     }
@@ -54,11 +56,13 @@ public class BasicIngredient {
         this.price = price;
     }
 
-    public List<Shampoo> getShampoos() {
+    @ManyToMany(mappedBy = "ingredients",
+            cascade = CascadeType.ALL)
+    public List<BasicShampoo> getShampoos() {
         return shampoos;
     }
 
-    public void setShampoos(List<Shampoo> shampoos) {
+    public void setShampoos(List<BasicShampoo> shampoos) {
         this.shampoos = shampoos;
     }
 }
